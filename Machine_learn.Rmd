@@ -1,0 +1,100 @@
+---
+title: "Machine Learning Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Synopsis
+This studio reports an algorithm that predict the manner in which 6 participants of an experiment perform different fisical exercises and define how well they do it. Random forest was the algorithm selected in this project and the accuracy achieved was 0.99.  
+
+
+###Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+###Data
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+###Load data
+```{r echo=TRUE, cache=TRUE}
+library(caret)
+library(ggplot2)
+library(randomForest)
+library(rpart)
+setwd("~/Documents/R")
+data_train<-read.csv("pml_training.csv",na.strings=c("NA","#DIV/0!",""))
+data_test<-read.csv("pml_testing.csv",na.strings=c("NA","#DIV/0!",""))
+```
+Splitting the training data set:
+```{r echo=TRUE}
+split_train<-createDataPartition(data_train$classe,p=0.6,list=FALSE)
+train_fin<-data_train[split_train,]
+test_fin<-data_train[-split_train,]
+```
+Delete the variables with a high percentage of missing values and the first variable(index variable):
+```{r echo=TRUE}
+miss_val<-is.na(train_fin)
+del_var<-which(colSums(miss_val) > 10000)
+train_fin<-train_fin[,-del_var]
+dim(train_fin)
+
+train_fin<-train_fin[c(-1)]
+head(train_fin)
+names(train_fin)
+```
+
+###Random forest algorithm
+```{r echo=FALSE}
+
+coln_1<-colnames(train_fin)
+coln_2<-colnames(train_fin[, -59])  
+test_fin<-test_fin[coln_1] 
+data_test<-data_test[coln_2]     
+
+dim(test_fin)
+dim(data_test)
+
+
+for (i in 1:length(data_test) ) {
+    for(j in 1:length(train_fin)) {
+        if(length(grep(names(train_fin[i]),names(data_test)[j]))==1)  {
+            class(data_test[j])<-class(train_fin[i])
+        }      
+    }      
+}
+```
+
+Apply the random forest algorithm to adjust a model that allowed to predict the manner to do the exercises.
+
+```{r echo=TRUE, cache=TRUE}
+data_test<-rbind(train_fin[2,-59], data_test)
+data_test<-data_test[-1,]
+
+set.seed(445)
+model<-randomForest(classe ~ .,data=train_fin)
+```
+####Cross validation
+```{r}
+predicted_val<-predict(model,test_fin,type="class")
+cross_val<-confusionMatrix(predicted_val,test_fin$classe)
+cross_val
+```
+Our cross validation shows an evidence of a great level of precision with an accuracy of 0.99. 
+
+###Course Project Prediction Quiz Portion
+
+Apply your machine learning algorithm to the 20 test cases available in the test data above.
+
+```{r echo=TRUE}
+predicted_tes<-predict(model,data_test,type="class")
+predicted_tes
+```
+
